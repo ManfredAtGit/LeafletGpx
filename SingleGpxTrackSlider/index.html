@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet GPX Example</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.4.0/gpx.min.js"></script>
+</head>
+<body>
+    <div id="map" style="width: 100%; height: 600px;"></div>
+    <input type="range" id="slider" min="0" max="100" value="0" />
+    <script>
+        // Excellent! The track now properly animates as you move the slider,
+        // showing the progressive drawing from start to finish. The combination 
+        // of removing the original track and redrawing the partial track based
+        // on the slider position creates exactly the visualization effect we wanted. 
+
+        const map = L.map('map').setView([51.505, -0.09], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        let gpxLayer;
+        let partialLayer;
+        const latlngs = [];
+        let totalDistance = 0;
+
+        new L.GPX('https://raw.githubusercontent.com/ManfredAtGit/gpxstore/refs/heads/main/Borkenberge.gpx', {
+            async: true,
+            polyline_options: {
+                color: 'blue',
+                weight: 5,
+                opacity: 0.75
+            }
+        }).on('loaded', function(e) {
+            gpxLayer = e.target;
+            console.log('GPX loaded');
+            console.log('Before adding points, latlngs length:', latlngs.length);
+            
+            // Get the first layer's coordinates
+            const track = gpxLayer._layers[Object.keys(gpxLayer._layers)[0]];
+            console.log('Track found:', track);
+            console.log('Track full object:', track);
+
+            const trackLine = track._layers[Object.keys(track._layers)[0]];
+            console.log('TrackLine:', trackLine);
+
+            if (trackLine && trackLine.getLatLngs) {
+                latlngs.push(...trackLine.getLatLngs());
+                console.log('Points loaded:', latlngs.length);
+            }
+
+            console.log('Points loaded:', latlngs.length);
+           
+            map.fitBounds(gpxLayer.getBounds());
+            map.removeLayer(gpxLayer); // after fitBoungs, remove the original complete track
+          }).addTo(map);  // Make sure to add the layer to the map
+
+          console.log('Track points loaded:', latlngs.length);
+
+          // slider handler
+          const slider = document.getElementById('slider');
+          slider.addEventListener('input', function() {
+              const value = parseInt(slider.value);
+              console.log('Slider value:', value);
+              
+              // Calculate how many points to show based on percentage
+              const numPoints = Math.ceil((value / 100) * latlngs.length);
+              const points = latlngs.slice(0, numPoints);
+              
+              console.log('Showing points:', points.length);
+              
+              if (points.length > 0) {
+                  if (partialLayer) {
+                    console.log('removing partial layer')
+                    map.removeLayer(partialLayer);
+                  }
+                  console.log('before drawing new partial layer')
+                  partialLayer = L.polyline(points, {
+                      color: 'red',
+                      weight: 5,
+                      opacity: 0.75
+                  }).addTo(map);
+              }
+          });
+    </script>
+</body>
+</html>
