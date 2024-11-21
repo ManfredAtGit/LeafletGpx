@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="track-animation-fancySlider.css">
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
@@ -14,89 +15,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.4.0/gpx.min.js"></script>
     <script src="track-animation-fancySlider.js"></script>
-    <style>
-        .control-panel {
-            width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-    
-        .track-info {
-            margin-bottom: 20px;
-        }
-    
-        .track-info h3 {
-            margin: 0 0 10px 0;
-            color: #333;
-        }
-    
-        .stats {
-            display: flex;
-            justify-content: space-between;
-            color: #666;
-        }
-    
-        .slider-container {
-            width: 100%;
-            padding: 10px 0;
-        }
-    
-        #slider {
-            width: 100%;
-            margin: 10px 0;
-            height: 4px;
-            background: #e0e0e0;
-        }
-    
-        .ui-slider-handle {
-            width: 16px !important;
-            height: 16px !important;
-            background: #2196F3 !important;
-            border: 2px solid white !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        }
-    
-        .slider-labels {
-            display: flex;
-            justify-content: space-between;
-            color: #666;
-            font-size: 12px;
-        }
-    
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
-        }
-    
-        .controls button {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: none;
-            background: #2196F3;
-            color: white;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-    
-        .controls button:hover {
-            background: #1976D2;
-        }
-    
-        .tooltip {
-            background: #2196F3;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-    </style>
 
 </head>
 <body>
@@ -108,6 +26,7 @@
             <div class="stats">
                 <span id="distance">Distance: 0.0 km</span>
                 <span id="elevation">Elevation: 0 m</span>
+                <span id="speed">Speed: 0.0 km/h</span>"
             </div>
         </div>
         <div class="slider-container">

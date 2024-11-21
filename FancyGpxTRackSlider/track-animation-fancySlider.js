@@ -109,11 +109,30 @@ const calculateElevation = (points) => {
     };
 };
 
+const calculateSpeed = (points) => {
+    if (points.length < 2) return 0;
+
+    let distance = 0;
+
+    const prevPoint = points[points.length - 2];
+    const currentPoint = points[points.length - 1];
+    distance = currentPoint.distanceTo(prevPoint);
+    const time = new Date(currentPoint.meta.time);
+    const prevtime = new Date(prevPoint.meta.time);
+    const timeDiff = (time - prevtime) / 1000; // Time difference in seconds
+    const speedMps = distance / timeDiff; // Speed in meters per second
+    const speedKph = speedMps * 3.6; // Speed in kilometers per hour
+    return speedKph;
+
+};
+
 const updateStats = (points) => {
     const distance = calculateDistance(points);
     const elevation = calculateElevation(points);
+    const speed = calculateSpeed(points);
     
     $('#distance').text(`Distance: ${distance} km`);
     $('#elevation').text(`Current: ${elevation.current}m (↑${elevation.gain}m)`);
+    $('#speed').text(`Speed: ${speed.toFixed(2)} km/h`);
 };
 
