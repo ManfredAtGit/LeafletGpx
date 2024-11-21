@@ -5,4 +5,4 @@ Gpx files are located in the GpxStore subfolder
 
 - SingleGpxTrackSlider:
 single gpx track with slider controlled display
-- xxx
+- FancyGpxTRackSlider: with jQuery advanced slider for displaying stats
