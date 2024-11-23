@@ -79,3 +79,14 @@
     font-size: 12px;
     white-space: nowrap;
 }
+
+.display-length {
+    display: inline-block;
+    margin-left: 15px;
+}
+
+.display-length input {
+    width: 60px;
+    padding: 5px;
+    margin-left: 5px;
+}

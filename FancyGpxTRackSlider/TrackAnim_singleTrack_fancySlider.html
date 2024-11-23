@@ -24,6 +24,7 @@
         <div class="track-info">
             <h3>Track Progress</h3>
             <div class="stats">
+                <span id="elapsedTime">Elapsed Time: 0 min</span>
                 <span id="distance">Distance: 0.0 km</span>
                 <span id="elevation">Elevation: 0 m</span>
                 <span id="speed">Speed: 0.0 km/h</span>"
@@ -39,12 +40,19 @@
         <div class="controls">
             <button id="play-pause"><i class="fas fa-play"></i></button>
             <button id="reset"><i class="fas fa-undo"></i></button>
+            <div class="display-length">
+                <label for="animation-duration">Duration (s):</label>
+                <input type="number" id="animation-duration" min="10" max="120" value="30">
+            </div>
         </div>
     </div>
 
     <script>
         const map = initMap();
-        loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/gpxstore/refs/heads/main/Borkenberge.gpx');
+        loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Gap_Runde.gpx');
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Boedele.gpx');
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/gpxstore/refs/heads/main/Borkenberge.gpx');
     </script>
 </body>
 </html>
