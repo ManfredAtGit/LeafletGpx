@@ -15,14 +15,14 @@ const loadTrack = (map, gpxUrl) => {
 
     new L.GPX(gpxUrl, {
         async: true,
-        polyline_options: {
-            color: 'blue',
-            weight: 2,
-            opacity: 0.75
-        }
+    }).on('error', function(err) {
+        console.error('Error loading GPX:', err);
+        // Handle error gracefully
     }).on('loaded', function(e) {
         gpxLayer = e.target;
         console.log('gpxLayer: ', gpxLayer);
+        // Get the first layer's coordinates
+        const track = gpxLayer._layers[Object.keys(gpxLayer._layers)[0]];
 
        const trackLine = track._layers[Object.keys(track._layers)[0]];
         const trackDist = gpxLayer.get_distance(); //total track distance in meter
@@ -242,7 +242,18 @@ function calculateSpeedData(latlngs) {
 }
 
 //
-
+/**
+ * @param {Array} latlngs - An array of objects representing trackpoints with
+ * latitude, longitude, meta.ele, and meta.time properties.
+ * @param {Array} points - An array of objects representing the set of segments
+ * of the track. A segment represents an track element between 2 consecutive points.
+ * Properties of a segment is the segment starting point, the average speed within 
+ * that segment, a (interpolated) approximation of the elevation of that segment
+ * and the acummulated total distance of the track up to and including that segment.
+ * @totalDuration - the total duration of the track in ms
+ * @startTime - the time in ms when the animation starts or continues
+ * @returns {void}
+ */
 function startTrackAnimation(points, latlngs, totalDuration, startTime=0) {
     clearInterval(animationInterval); //built-in; stops any running animation
     currentTime = startTime;

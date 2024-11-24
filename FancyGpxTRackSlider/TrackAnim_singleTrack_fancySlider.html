@@ -18,31 +18,33 @@
 
 </head>
 <body>
-    <div id="map" style="width: 100%; height: 600px;"></div>
-
-    <div class="control-panel">
-        <div class="track-info">
-            <h3>Track Progress</h3>
-            <div class="stats">
-                <span id="elapsedTime">Elapsed Time: 0 min</span>
-                <span id="distance">Distance: 0.0 km</span>
-                <span id="elevation">Elevation: 0 m</span>
-                <span id="speed">Speed: 0.0 km/h</span>"
+    <div class="container">
+        <!--<div id="map" style="width: 100%; height: 600px;"></div> -->
+        <div id="map"></div>
+        <div class="control-panel">
+            <div class="track-info">
+                <h3>Track Progress</h3>
+                <div class="stats">
+                    <span id="elapsedTime">Elapsed Time: 0 min</span>
+                    <span id="distance">Distance: 0.0 km</span>
+                    <span id="elevation">Elevation: 0 m</span>
+                    <span id="speed">Speed: 0.0 km/h</span>"
+                </div>
             </div>
-        </div>
-        <div class="slider-container">
-            <div id="slider"></div>
-            <div class="slider-labels">
-                <span>Start</span>
-                <span>Finish</span>
+            <div class="slider-container">
+                <div id="slider"></div>
+                <div class="slider-labels">
+                    <span>Start</span>
+                    <span>Finish</span>
+                </div>
             </div>
-        </div>
-        <div class="controls">
-            <button id="play-pause"><i class="fas fa-play"></i></button>
-            <button id="reset"><i class="fas fa-undo"></i></button>
-            <div class="display-length">
-                <label for="animation-duration">Duration (s):</label>
-                <input type="number" id="animation-duration" min="10" max="120" value="30">
+            <div class="controls">
+                <button id="play-pause"><i class="fas fa-play"></i></button>
+                <button id="reset"><i class="fas fa-undo"></i></button>
+                <div class="display-length">
+                    <label for="animation-duration">Duration (s):</label>
+                    <input type="number" id="animation-duration" min="10" max="120" value="30">
+                </div>
             </div>
         </div>
     </div>
