@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"> 
+<!-- TrackAnim_singleTrack_fancySlider.html?track=https://your-gpx-url.gpx -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,8 @@
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.4.0/gpx.min.js"></script>
@@ -53,15 +56,36 @@
                     </select>
                 </div>
             </div>
+
+            <!-- Add this inside the control-panel div, after the track-info div -->
+            <div class="elevation-chart">
+                <canvas id="elevationChart"></canvas>
+            </div>
+
+
         </div>
     </div>
 
     <script>
         const map = initMap();
-        loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
+
+        // Get GPX URL from query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const gpxUrl = urlParams.get('track');
+        
+        // Load either provided track or default track
+        if (gpxUrl) {
+            loadTrack(map, decodeURIComponent(gpxUrl));
+        } else {
+            loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
+        }
+
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
         //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Gap_Runde.gpx');
         //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Boedele.gpx');
         //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/gpxstore/refs/heads/main/Borkenberge.gpx');
     </script>
 </body>
 </html>
+
+

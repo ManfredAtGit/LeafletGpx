@@ -3,6 +3,7 @@
 A web-based GPX track visualization tool with interactive playback controls and real-time statistics.
 
 ## Features
+- gpx-track can be passed via parameter "track"; otherwise default track is used
 - Interactive map display using Leaflet
 - Track playback animation with play/pause controls
 - Customizable animation duration
@@ -24,6 +25,7 @@ A web-based GPX track visualization tool with interactive playback controls and 
 - jQuery UI 1.13.2
 - Font Awesome 5.15.4
 - Leaflet-GPX 1.4.0
+- chart.js
 
 ## Usage
 1.  Include the required files:
@@ -55,6 +57,10 @@ Real-time updates showing:
 - Distance covered
 - Current elevation and elevation gain
 - Current speed
+
+## chart display
+- display elevation against track distance position
+- animate current position with red point symbol
 
 ## Layout
 The interface uses a flexible layout with:

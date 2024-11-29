@@ -3,11 +3,6 @@ ToDos:
 
 - clean-up code
 
-- graphic for track-elevation along track distance and display of actual position
-  (km-travelled, elevation) on that curve
-
-- pass track to be visualized via url-parameter
-
 */
 
 /**
@@ -25,6 +20,7 @@ let positionMarker;
 let latlngsPoints, latlngsDist, latlngsDuration;
 let currentTrack;
 let progressLine;
+let elevationChart;
 
 
 /**
@@ -37,6 +33,7 @@ const initMap = () => {
     }).addTo(map);
     return map;
 };
+
 
 // Track loading and processing
 const loadTrack = (map, gpxUrl) => {
@@ -86,6 +83,7 @@ const loadTrack = (map, gpxUrl) => {
 
         initializeTrackProgress();
 
+        initializeElevationChart(latlngs)
 
     }).addTo(map);
 };
@@ -170,6 +168,7 @@ const initSlider = (map, latlngs) => {
 
                 updateStats(points);
                 updatePositionMarker(points);
+                updateElevationChart(value/100, latlngs);
 
             }
         },
@@ -326,7 +325,7 @@ function initializeControls(latlngs) {
         updateTrackProgress(0, latlngs);
         $("#slider").find('.tooltip').html(Math.round(0 * 100) + '%');
         resetTrackDisplay();
-        updateStatsAnim(0, 0, 0, 0);
+        updateStats(latlngs.slice(0, 1));
     });
 
     // Track mode selection handler
@@ -391,6 +390,7 @@ function startTrackAnimation(latlngs, playTime, startTime=0) {
         updateTrackProgress(progress, latlngs);
         updatePositionMarker(points);
         updateStats(points);
+        updateElevationChart(progress, latlngs);
 
     }, intervalStep);
 }
@@ -434,6 +434,22 @@ function updateTrackProgress(progress,latlngs) {
     progressLine.setLatLngs(progressPoints);
 }
 
+function updateCurrentTrack(mode) {
+    switch(mode) {
+        case 'trackpoints':
+            currentTrack = latlngsPoints;
+            break;
+        case 'distance':
+            currentTrack = latlngsDist;
+            break;
+        case 'time':
+            currentTrack = latlngsDuration;
+            break;
+        default:
+            currentTrack = latlngsPoints;
+    }
+}
+
 /**
  * Reset track display for animation to initial state
  */
@@ -466,184 +482,83 @@ function updatePositionMarker(points) {
 }
 
 
-//////////// D E P R E C A T E D ////////////////
+function initializeElevationChart(latlngs) {
+    const distances = latlngs.map(point => (point.meta.cumDistance / 1000)); // Convert to km
+    const elevations = latlngs.map(point => point.meta.ele);
+    const totalDistance = latlngs[latlngs.length-1].meta.cumDistance / 1000;
 
-/**
- * Function takes (part of) gpx-track and calculates an running total of distance as km
- * @param {Array} points : gpx-track 
- * @returns cumulative distance in km
- */
-const calculateDistance = (points) => {
-    let distance = 0;
-    for (let i = 1; i < points.length; i++) {
-        distance += points[i].distanceTo(points[i-1]);
-    }
-    return (distance / 1000).toFixed(2); // Convert to km and format
-};
-
-/**
- * Function takes (part of) gpx-track and calculates an elevation object with properties:
- * current elevation (elevation of last segment) and running total of elevation climbed
- * @param {Array} points : gpx-track 
- * @returns object with properties : currentElevation and gain (= cummulated elevationClimbed)
- */
-const calculateElevation = (points) => {
-    if (points.length === 0) return { current: 0, gain: 0 };
+    const ctx = document.getElementById('elevationChart').getContext('2d');
     
-    let gain = 0;
-    let current = points[points.length - 1].meta.ele;
-    
-    for (let i = 1; i < points.length; i++) {
-        const elevation_diff = points[i].meta.ele - points[i-1].meta.ele;
-        if (elevation_diff > 0) {
-            gain += elevation_diff;
+    elevationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: distances,
+            datasets: [{
+                label: 'Elevation Profile',
+                data: elevations,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.4,
+                fill: true,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)'
+            },
+            {
+                label: 'Current Position',
+                data: [{x: 0, y: elevations[0]}],
+                pointBackgroundColor: 'red',
+                pointRadius: 6,
+                showLine: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: 0,
+                    max: totalDistance,
+                    ticks: {
+                        stepSize: totalDistance / 10,  // Create 10 evenly spaced ticks
+                        callback: function(value) {
+                            return value.toFixed(2);
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distance (km)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Elevation (m)'
+                    }
+                }
+            },
+            animation: false
         }
-    }
+    });
+}
+
+function updateElevationChart(progress, latlngs) {
+    if (!elevationChart) return;
     
-    return {
-        current: Math.round(current),
-        gain: Math.round(gain)
+    const pointIndex = Math.floor(progress * (latlngs.length - 1));
+    const currentPoint = latlngs[pointIndex];
+
+    // Create the data point with exact numeric values, not strings
+    const currentData = {
+        x: currentPoint.meta.cumDistance / 1000,  // Keep as number, don't use toFixed here
+        y: currentPoint.meta.ele
     };
-};
-
-// calculate a array of speed data points for an track
-// a speed point is a object with a startpoint of a segment,
-// an average speed value of a segment and cumulated distance up
-// to and including this segment.
-// the parameter track is a gpx-track represented as a latlgns
-// array of objects {lat,lng,meta:{tim,ele}}
-function calculateSpeedData(latlngs) {
-    const points = latlngs;
-    const speedPoints = [];
-    let acumDistance = 0;
-    
-    for (let i = 0; i < points.length - 1; i++) {
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        
-        // Calculate distance between points
-        const segmentDistance = L.latLng(p1.lat, p1.lng).distanceTo(L.latLng(p2.lat, p2.lng));
-        
-        // Calculate time difference in seconds
-        const segmentTime = (p2.meta.time - p1.meta.time) / 1000;
-        
-        // Calculate speed in km/h
-        const speed = (segmentDistance / segmentTime) * 3.6;
-        
-        acumDistance += segmentDistance;
-        
-        speedPoints.push({
-            distance: acumDistance,
-            speed: speed,
-            point: p1,
-            ele: p1.meta.ele
-        });
-    }
-    
-    return speedPoints;
+    /*
+    elevationChart.data.datasets[1].data = [{
+        x: (currentPoint.meta.cumDistance / 1000),
+        y: currentPoint.meta.ele
+    }];
+    */
+    elevationChart.data.datasets[1].data = [currentData];
+    elevationChart.update('none');
 }
 
-function updateCurrentTrack(mode) {
-    switch(mode) {
-        case 'trackpoints':
-            currentTrack = latlngsPoints;
-            break;
-        case 'distance':
-            currentTrack = latlngsDist;
-            break;
-        case 'time':
-            currentTrack = latlngsDuration;
-            break;
-        default:
-            currentTrack = latlngsPoints;
-    }
-}
-
-/**
- * Function takes (part of) gpx-track and calculates (average) speed of last segment of an gpx-track as segDistance/segDuration
- * @param {Array} points : gpx-track 
- * @returns speed in km/h
- */
-const calculateSpeed = (points) => {
-    if (points.length < 2) return 0;
-
-    let distance = 0;
-
-    const prevPoint = points[points.length - 2];
-    const currentPoint = points[points.length - 1];
-    distance = currentPoint.distanceTo(prevPoint);
-    const time = new Date(currentPoint.meta.time);
-    const prevtime = new Date(prevPoint.meta.time);
-    const timeDiff = (time - prevtime) / 1000; // Time difference in seconds
-    const speedMps = distance / timeDiff; // Speed in meters per second
-    const speedKph = speedMps * 3.6; // Speed in kilometers per hour
-    return speedKph;
-
-};
-
-
-/**
- * Function to update div-elements with track statistics according to the current playhead-position
- * @param {*} elapsedTime : total elapsed time in minutes
- * @param {*} dist : total distance in meter
- * @param {*} speed : km/h of current track-egment/point
- * @param {*} ele : current elevation in meter
- */
-const updateStatsAnim = (elapsedTime, dist, speed, ele) => {
-    const distance = dist/1000;
-    const elevation = ele;
-    const cur_speed = speed;
-
-    $('#elapsedTime').text(`Elapsed Time: ${elapsedTime.toFixed(0)} min`);
-    $('#distance').text(`Distance: ${distance.toFixed(2)} km`);
-    $('#elevation').text(`Elevation: ${elevation.toFixed(0)}m `);
-    $('#speed').text(`Speed: ${cur_speed.toFixed(2)} km/h`);
-};
-
-/**
- * 
- * @param {*} distance : accumulated distance of a trakpoint/segment
- * @param {*} latlngs 
- * @param {*} speedPoints 
- * @returns 
- */
-function interpolateSpeed(distance, latlngs) {
-    // Find closest speed point based on distance and return speed approx for segment
-    for (let i = 0; i < latlngs.length - 2; i++) {
-        if (distance >= latlngs[i].meta.cumDistance && distance <= latlngs[i + 1].meta.cumDistance) {
-            const ratio = (distance - latlngs[i].meta.cumDistance) / 
-                         (latlngs[i + 1].meta.cumDistance - latlngs[i].meta.cumDistance);
-            //const interpolatedSpeed = speedPoints[i].speed + ratio * (speedPoints[i + 1].speed - speedPoints[i].speed);
-
-            const speed1 = latlngs[i].meta.segmentDistance / latlngs[i].meta.segmentDuration * 1000 * 3.6;
-            const speed2 = latlngs[i+1].meta.segmentDistance / latlngs[i+1].meta.segmentDuration * 1000 * 3.6;
-            return speed1 + ratio * (speed2 - speed1);
-        }
-    }
-
-        // Calculate distance between points
-        const segmentDistance = L.latLng(p1.lat, p1.lng).distanceTo(L.latLng(p2.lat, p2.lng));
-        
-        // Calculate time difference in seconds
-        const segmentTime = (p2.meta.time - p1.meta.time) / 1000;
-        
-        // Calculate speed in km/h
-        const speed = (segmentDistance / segmentTime) * 3.6;
-
-    return latlngs[latlngs.length - 1].meta.segmentDistance / latlngs[latlngs.length - 1].meta.segmentDuration * 3.6;
-}
-
-function interpolateEle(distance, latlngs) {
-    // Find closest speed point based on distance and return elevation approx for segment
-    for (let i = 0; i < latlngs.length - 2; i++) {
-        if (distance >= latlngs[i].meta.cumDistance && distance <= latlngs[i + 1].meta.cumDistance) {
-            const ratio = (distance - latlngs[i].meta.cumDistance) / 
-                         (latlngs[i + 1].meta.cumDistance - latlngs[i].meta.cumDistance);
-            //const interpolatedSpeed = speedPoints[i].speed + ratio * (speedPoints[i + 1].speed - speedPoints[i].speed);
-            //console.log('interpolated speed: ',interpolatedSpeed);
-            return latlngs[i].meta.ele + ratio * (latlngs[i+1].meta.ele - latlngs[i].meta.ele);
-        }
-    }
-    return latlngs[latlngs.length - 1].ele;
-}
 
