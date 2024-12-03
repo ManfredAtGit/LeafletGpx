@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en"> 
+<!-- TrackAnim_singleTrack_fancySlider.html?track=https://your-gpx-url.gpx -->
+<!--
+file:///D:/00-programming/work/race01.html?track1=
+'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210428.gpx'&
+track2='https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210520.gpx
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet GPX Example</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="race01.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.4.0/gpx.min.js"></script>
+    <script src="race01.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <!--<div id="map" style="width: 100%; height: 600px;"></div> -->
+        <div id="map"></div>
+        <div class="control-panel">
+            <div class="track-info">
+                <h3>Track Progress</h3>
+                <div class="stats">
+                    <span id="elapsedTime">Elapsed Time: 0 min</span>
+                    <span id="distance">Distance: 0.0 km</span>
+                    <span id="elevation">Elevation: 0 m</span>
+                    <span id="speed">Speed: 0.0 km/h</span>"
+                </div>
+            </div>
+            <div class="slider-container">
+                <div id="slider"></div>
+                <div class="slider-labels">
+                    <span>Start</span>
+                    <span>Finish</span>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="play-pause"><i class="fas fa-play"></i></button>
+                <button id="reset"><i class="fas fa-undo"></i></button>
+                <div class="display-length">
+                    <label for="animation-duration">Duration (s):</label>
+                    <input type="number" id="animation-duration" min="10" max="120" value="30">
+                </div>
+                <div class="stats">
+                    <span id="gap">Gap: 0 m</span>
+                    <span id="gap2">Gap-distanceTo: 0 m</span>
+                </div>
+            </div>
+
+            <!-- Add this inside the control-panel div, after the track-info div -->
+            <div class="elevation-chart">
+                <canvas id="elevationChart"></canvas>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script>
+        const map = initMap();
+
+        // Get GPX URL from query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const gpxUrl1 = urlParams.get('track1');
+        const gpxUrl2 = urlParams.get('track2');
+        
+        // Load either provided track or default track
+        if (gpxUrl1&&gpxUrl2) {
+            loadTracks(map, decodeURIComponent(gpxUrl1), decodeURIComponent(gpxUrl2));
+        } else {
+            /*loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
+            loadTracks(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/W20160305.gpx',
+            'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
+            loadTracks(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210428.gpx',
+            'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210220.gpx');
+             loadTracks(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210428.gpx',
+            'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210520.gpx');           
+            */
+            loadTracks(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210428.gpx',
+            'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210220.gpx');
+
+        }
+/*
+https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20190707.gpx
+https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210220.gpx
+https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210428.gpx
+https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/M%C3%B6hnesee-20210520.gpx
+*/
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Wixberg_mit_Bjoern.gpx');
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Gap_Runde.gpx');
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/GpxStore/Boedele.gpx');
+        //loadTrack(map, 'https://raw.githubusercontent.com/ManfredAtGit/gpxstore/refs/heads/main/Borkenberge.gpx');
+    </script>
+</body>
+</html>
+
+
