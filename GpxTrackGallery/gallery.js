@@ -21,7 +21,7 @@
 // Global Scope
 
 let fancySliderBaseUrl = 'https://manfredatgit.github.io/FancyGpxTrackSlider/TrackAnim_singleTrack_fancySlider.html'
-let RaceBaseUrl = 'https://manfredatgit.github.io/GpxTrackRace/race01.html'
+let RaceBaseUrl = 'https://manfredatgit.github.io/LeafletGpx/GpxTrackRace/race01.html'
 let table;
 let map;
 let trackLayers = new Map(); // Store track layers with their corresponding row IDs
