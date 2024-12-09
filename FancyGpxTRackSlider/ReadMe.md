@@ -1,6 +1,7 @@
 
 # Track Animation Visualization
 A web-based GPX track visualization tool with interactive playback controls and real-time statistics.
+  https://manfredatgit.github.io/FancyGpxTrackSlider/TrackAnim_singleTrack_fancySlider.html (optional par. $track=track-url)
 
 ## Features
 - gpx-track can be passed via parameter "track"; otherwise default track is used
