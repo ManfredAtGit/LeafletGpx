@@ -1,6 +1,7 @@
 # Race Track Comparison Tool
 
 An interactive web application for comparing two GPX tracks simultaneously, visualizing their progression, elevation profiles, and relative performance metrics in real-time.
+https://manfredatgit.github.io/LeafletGpx/GpxTrackRace/race01.html (optional pars $track1=track1-url&track2=track2-url)
 
 ## Features
 
