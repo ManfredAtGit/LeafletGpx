@@ -36,12 +36,29 @@ The user can interact with this parallel coordinates visualization in the follow
 - in update_ticks, re-initialzing the brush with event-handler requires the "call"-technique to pass the correct this-context.
   ( .on("end", function(event) { brushEnd.call(this, event, yscale, d); }))
 
+
+# useage
+
+Most efficient use of the interactive controls needs a bit of practice. I would start by focusing on the most important dimensions and removing (dragging dimension to the very left or right) which are not needed. Then simply brush on fifferent dimension axises to filter data. BrushSelections (extents) can be cleared again by a simple click somewhere near the dimension axis (when cursor position is displayed as cross-hair pointer). Clearing a BrushSelection sometimes fails, when the click is not a short, clean mouse click. Then the user interaction is interpreted as a (short) brush event resultimng in a very narroww brush selection with now data being shown. Just try again to clear the selection.
+
+Another way to better organize or analyse the data is by inverting the axis. This can be done by a simple click on the axis label (on-hover cursor pointer display changes). 
+
+Dimensions can be re-ordered by dragging the axis label to a new position. Reordering dimensions is useful for aligning certain dimensions side by side or for organizing the overall visual appearance in a better way (detecting patterns).
+
+Usage of Exlude/Keep buttons: With "Keep" only the currently selected data is shown. With "Exclude" the currently selected data is removed from the visualization. In either case all brush selections are cleared and axis are re-scaled to fit the new (reduced) dataset. This way one can zoom-in on subsets of the data by streching the dimension scale over this subset.
+
+A sample of 25 activities of the current selection is listed by name. Moving the mouse over one element in the list will highlight the corresponding path in the parallel coordinates plot. Clicking on one element in the list will call the interactive map animation of the corresponding activity.
+
+Finally, a horizontal bar chart visualize the currently selected/displayed activities by activity group. Clicking on one bar will remove the corresponding activities of that group from the display/selection. Clicking again will restore the activities again.
+
 # future work
 - re-work from scratch to use d3-v6/v7 and get clearer code
 - add non-numeric dimensions
 - add customized label ticks for non-numeric dimensions/axis
 
 
+# live link at github-pages
+[Strava Parallel Coordinates](https://manfredatgit.github.io/LeafletGpx/StravaViz/index.html)
 
 
 
