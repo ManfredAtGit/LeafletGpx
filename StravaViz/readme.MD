@@ -51,10 +51,16 @@ A sample of 25 activities of the current selection is listed by name. Moving the
 
 Finally, a horizontal bar chart visualize the currently selected/displayed activities by activity group. Clicking on one bar will remove the corresponding activities of that group from the display/selection. Clicking again will restore the activities again.
 
+# limitations
+- input data as csv file with first line with column names; comma seperator; non null (NaN) values.
+- special columns: group (activity group) and name (activity name) used for data table and samples list
+- limited support for non-numeric dimensions (Monthname, Day); order of categories within non-numeric dimension is hardcoded
+
 # future work
 - re-work from scratch to use d3-v6/v7 and get clearer code
 - add non-numeric dimensions
 - add customized label ticks for non-numeric dimensions/axis
+- add support for missing values (NaN)
 
 
 # live link at github-pages

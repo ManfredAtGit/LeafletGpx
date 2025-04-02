@@ -1,23 +1,6 @@
 // Parallel Coordinates
-// Copyright (c) 2012, Kai Chang
-// Released under the BSD License: http://opensource.org/licenses/BSD-3-Clause
-
+// Adapted from examples by Kai Chang, Mike Bostock and Jason Davies
 /*
-invert: o.k.
-brush: o.k.
-drag: o.k
-
-brush, un-brush: o.k.
-brush-invert: o-k
-
-dblclick on datatable row: o.k.
-
-deactivated hack to re-draw ticks within current brush-extent/selection
-  update-ticks after brush : not.o.k.
-
-exclude/include/export: not tested yet
-
-
 implementation details:
 - introduced unique id for each brush to address specific brush in code
 - mapping between dimension/axis and brush kept in "dimbrush_index"
@@ -36,9 +19,27 @@ implementation details:
 
 - in update_ticks, re-initialzing the brush with event-handler requires the "call"-technique to pass the correct this-context.
   ( .on("end", function(event) { brushEnd.call(this, event, yscale, d); }))
+
+- introduced categorical dimensions (currently limeted to max 12 categories)
+
+
+TODO's:
+- keep/exclude buttons zoom-in/focus on categorical scales; but then extents don't match with zoomed scale and invert axis will loose all data
+  probably needs some remapping of categories to pixels
+- inaccuracies inverting categorical dimensions
+
+- duplication of code (brushed and actives function)
+- handling window resize
+- update to d3-v7
+- test for code smells
+- replace var with let and const
+
 */
+
+// (base)url's to StravaGpxDir and FancyGpxTrackSlider on github
 const fancySliderBaseUrl = 'https://manfredatgit.github.io/FancyGpxTrackSlider/TrackAnim_singleTrack_fancySlider.html'
 const gitHub_StravaGpxDirUrl ='https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/StravaViz/StravaGpxDir/'
+
 
 let width = document.body.clientWidth;
 let height = Math.max(document.body.clientHeight - 540, 240);
@@ -64,11 +65,8 @@ let data,
 
 let render_speed = 50;
 let brush_count = 0;
-//let initialBrushPosition = null;
-//let finalBrushPosition = null;
 let excluded_groups = [];
 
-// context object
 const ctx = {};
 
 
@@ -84,35 +82,10 @@ const colors = {
     "xxx": [60,86,61]
   };
 
-/*
-const colors = {
-    "Baby Foods": [185,56,73],
-    "Baked Products": [37,50,75],
-    "Beef Products": [325,50,39],
-    "Beverages": [10,28,67],
-    "Breakfast Cereals": [271,39,57],
-    "Cereal Grains and Pasta": [56,58,73],
-    "Dairy and Egg Products": [28,100,52],
-    "Ethnic Foods": [41,75,61],
-    "Fast Foods": [60,86,61],
-    "Fats and Oils": [30,100,73],
-    "Finfish and Shellfish Products": [318,65,67],
-    "Fruits and Fruit Juices": [274,30,76],
-    "Lamb, Veal, and Game Products": [20,49,49],
-    "Legumes and Legume Products": [334,80,84],
-    "Meals, Entrees, and Sidedishes": [185,80,45],
-    "Nut and Seed Products": [10,30,42],
-    "Pork Products": [339,60,49],
-    "Poultry Products": [359,69,49],
-    "Restaurant Foods": [204,70,41],
-    "Sausages and Luncheon Meats": [1,100,79],
-    "Snacks": [189,57,75],
-    "Soups, Sauces, and Gravies": [110,57,70],
-    "Spices and Herbs": [214,55,79],
-    "Sweets": [339,60,75],
-    "Vegetables and Vegetable Products": [120,56,40]
-  };
-*/
+// special for Month dimension; Predefined order of month abbreviations
+const catDomains = ['MonthName', 'Day'];
+const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // Scale chart and canvas height
 d3.select("#chart")
@@ -121,7 +94,6 @@ d3.select("#chart")
 d3.selectAll("canvas")
     .attr("width", w)
     .attr("height", h)    
-    //.style("padding", margins.join("px ") + "px");
     .style("padding", `${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px`);
 
 
@@ -151,35 +123,7 @@ var svg = d3.select("svg")
     .attr("transform", "translate(" + margins.left + "," + margins.top + ")");
 
 
-// Updated Initialization Code
-
-// ???
-/*
-function createScales(dimensions) {
-  dimensions.forEach(dim => {
-    yscale[dim] = d3.scaleLinear()
-      .domain(d3.extent(data, d => d[dim]))
-      .range([h, 0]);
-  });
-}
-*/
-
-// This function renderAxes takes an SVG element and an array of dimensions. For each dimension, 
-// it appends a new group (<g>) element to the SVG, sets its class to axis, translates it horizontally 
-// based on the xscale function, and calls the axis function with the corresponding y-scale to add the axis to the group element.
-function renderAxes(svg, dimensions) {
-  dimensions.forEach(dim => {
-    const g = svg.append("g")
-      .attr("class", "axis")
-      .attr("transform", `translate(${xscale(dim)}, 0)`);
-
-    g.call(axis.scale(yscale[dim]));
-  });
-}
-
-
 // get data
-//d3.csv("https://gist.githubusercontent.com/syntagmatic/3150059/raw/5b3783a9ab58fb216a10a81c2b03b576b21d8c7a/nutrients.csv")
 //d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/9a2a272ec8a0e815e7c926550ffc431b4820f996/StravaViz/strava2_pc_statistics.csv")
 d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/main/StravaViz/strava2_pc_statistics.csv")
     .then(raw_data => {
@@ -193,16 +137,34 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
             return d;
         });
 
-        // Initialize yscale for each dimension (from first row of csv-file )
+
+
         dimensions = Object.keys(data[0]).filter(function(k) { 
           if (typeof data[0][k] === 'number') { 
+            // Numerical dimensions - keep original structure
             yscale[k] = d3.scaleLinear()
               .domain(d3.extent(data, function(d) { return +d[k]; }))
               .range([h, 0]); 
+            yscale[k].type = 'numeric';
             return true; 
-          } 
+          } else if (typeof data[0][k] === 'string') {
+            // Categorical dimensions - maintain same scale structure
+            let categories = [...new Set(data.map(d => d[k]))];
+            if (k == 'MonthName') { categories = monthOrder; };
+            if (k == 'Day') { categories = dayOrder; };
+            if (categories.length <= 12) {
+              //yscale[k] = d3.scalePoint()
+              yscale[k] = d3.scaleBand()
+                .domain(categories)
+                .range([h, 0])
+                .padding(0.5);
+              yscale[k].type = 'categorical';
+              yscale[k].categories = categories;
+              return true;
+            }
+          }
           return false; 
-        }).sort(); 
+        }).sort();
 
         // init mapping between dimensions and brush-index 
         dimensions.forEach(function(d,i) {
@@ -214,8 +176,9 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
 
         // Add a group element for each dimension.
         // This code snippet selects all elements with the class dimension within the svg element, binds the dimensions array to the selection, 
-        // and creates a new group (<g>) element for each data element. 
-        // It sets the class of each group to dimension and translates each group horizontally based on the xscale function.
+        // and creates a new group (<g>) element for each data element. It sets the class of each group to dimension and translates each group 
+        // horizontally based on the xscale function.
+        // It then defines drag behavior for each dimension, which allows the user to drag the dimension to a new position.
 
         var g = svg.selectAll(".dimension")
             .data(dimensions)
@@ -240,13 +203,6 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
                   dimensions.sort(function(a, b) { return position(a) - position(b); });
                   xscale.domain(dimensions);
 
-                  // mapping between dimensions and brush-index must be re-established after re-ordering dimensions 
-                  // (otherwise, brush operations dependant on indexing will fail)
-                  //dimensions.forEach(function(d,i) {
-                  //   dimbrush_index[d] = i;
-                  //});
-
-
                   g.attr("transform", function(d) { return "translate(" + position(d) + ")"; });
                   brush_count++;
                   this.__dragged__ = true;
@@ -262,10 +218,8 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
                 // handles the end of a drag event. It checks if the element was dragged, reorders the axes, updates the brush extents, 
                 // and provides visual feedback for axis deletion if the axis is dropped near the edges. It also ensures that the scales 
                 // and ticks are updated correctly and cleans up custom properties
-
                 .on("end", function(event,d) {
                   console.log("%cinside on-drag-end", "color: blue; font-size: 10px;");
-                  //event.sourceEvent.stopPropagation();
                   if (!this.__dragged__) {
                     console.log('inside on-end-not dragged');
                     // no movement, invert axis
@@ -274,8 +228,6 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
                   } else {
                     // reorder axes
                     d3.select(this).transition().attr("transform", "translate(" + xscale(d) + ")");
-                    //var extent = yscale[d].brush.extent();
-                    //var extent = d3.brushSelection(yscale[d].brush.node());
                     var extent = d3.brushSelection(d3.select(this).select(".brush").node());
                   }
 
@@ -285,8 +237,8 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
                   // remove axis if dragged all the way left
                   if (dragging[d] < 12 || dragging[d] > w - 12) {
                     remove_axis(d, g);
-                  }
-                
+                  };
+
                   // TODO required to avoid a bug
                   // ???????????????????????
                   xscale.domain(dimensions);
@@ -301,30 +253,32 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
                 })
                 
             );
-          
-          
-        
+
         // This code snippet appends a new group (<g>) element to the selection g, sets its class to axis, and translates it to the origin. 
         // It then calls the axis function with the scale for the current dimension d to add the axis to the group element. 
         // Next, it appends a new text (<text>) element to the group, sets its attributes for positioning and styling, 
         // and adds a title (<title>) element with a tooltip text.
         g.append("g")
-          .attr("class", "axis")
-          .attr("transform", "translate(0,0)")
-          .each(function(d) { d3.select(this).call(axis.scale(yscale[d])); })
-          .append("text")
-          .attr("text-anchor", "middle")
-          .attr("y", function(d,i) { return i % 2 === 0 ? -14 : -30; })
-          .attr("x", 0)
-          .attr("class", "label")
-          .text(String)
-          .append("title")
-            .text("Click to invert. Drag to reorder");
+        .attr("class", "axis")
+        .attr("transform", "translate(0,0)")
         
+        .each(function(d) { 
+          d3.select(this).call(axis.scale(yscale[d])); 
+        })
+        
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("y", function(d,i) { return i % 2 === 0 ? -14 : -30; })
+        .attr("x", 0)
+        .attr("class", "label")
+        .text(String)
+        .append("title")
+          .text("Click to invert. Drag to reorder");
+          
         // Add and store a brush for each axis.
         // This code snippet appends a new group (<g>) element to the selection g, sets its class to brush, and adds a brush for each axis 
         // (calls the brush function with the y-scale for the current dimension d).
-        // It then selects all <rect> elements within the group, sets their visibility, position, and width, and appends a title (<title>) 
+        // It then selects all <rect> elements (the brush extent) within the group, sets their visibility, position, and width, and appends a title (<title>) 
         // element with a tooltip text.
 
         g.append("g")
@@ -352,7 +306,7 @@ d3.csv("https://raw.githubusercontent.com/ManfredAtGit/LeafletGpx/refs/heads/mai
         .append("title")
           .text("Drag or resize this filter");
 
-
+   
         legend = create_legend(colors,brushed);
         
         // Render full foreground
@@ -371,67 +325,22 @@ function brushed() {
 
     brush_count++;
     console.log("inside brushed, brush_count: " + brush_count);
-    //var actives = dimensions.filter(function(p) { return !yscale[p].brush.empty(); }),
-    // v6-version
+
     var actives = dimensions.filter(function(p,i) {
-      //var brushSelection = d3.brushSelection(d3.select(".brush").node());
       var brush_ind = dimbrush_index[p];
       var brushSelection = d3.brushSelection(d3.select("#brush-" + brush_ind).node());
       return brushSelection !== null;
     });
 
-    /*
-    // Get extents for active dimensions 
-    var extents = actives.map(function(p,i) { 
-      var brushSelection = d3.brushSelection(d3.select("#brush-" + i).node()); 
-      return brushSelection !== null; 
-    });
-    */
-
     // Get extents for active dimensions 
     var extents = [];
     actives.map(function(p,i) { 
-      // get index of actives element in dimension array; we need this for the brush id
       var ind = dimensions.indexOf[p];
       var brush_ind = dimbrush_index[p];
       var brushSelection = d3.brushSelection(d3.select("#brush-" + brush_ind).node()); 
       if (brushSelection) {extents.push(brushSelection) }
     });
-
-
-    //var extents = actives.map(function(p) { return yscale[p].brush.extent(); });
-    //console.log('extents:  ',extents)
     
-    // hack to hide ticks beyond extent
-    /*
-    var b = d3.selectAll('.dimension').nodes()
-      .forEach(function(element, i) {
-        var dimension = d3.select(element).data()[0];
-        if (_.include(actives, dimension)) {
-          var extent = extents[actives.indexOf(dimension)];
-          d3.select(element)
-            .selectAll('text')
-            .style('font-weight', 'bold')
-            .style('font-size', '13px')
-            .style('display', function() { 
-              var value = d3.select(this).data();
-              return extent && extent[0] <= value && value <= extent[1] ? null : "none"
-            });
-        } else {
-          d3.select(element)
-            .selectAll('text')
-            .style('font-size', null)
-            .style('font-weight', null)
-            .style('display', null);
-        }
-        d3.select(element)
-          .selectAll('.label')
-          .style('display', null);
-      });
-      ;
-      */
-
-
     // bold dimensions with label
     d3.selectAll('.label')
       .style("font-weight", function(dimension) {
@@ -439,32 +348,39 @@ function brushed() {
         return null;
       });
   
-
     // Get lines within extents
-
+    
     var selected = [];
     data
       .filter(function(d) {
-        //return d.group == "Spices and Herbs";
         return !_.contains(excluded_groups, d.group);
       })
       .map(function(d) {
         return actives.every(function(p, dimension) {
-          //console.log("d, p, dimension: ",  d, p, dimension);
-          //console.log("d-p-dimension, extents: ",d[p], extents);
-          //if (extents) console.log(d[p], extents[dimension][0], extents[dimension][1]);
-          var extent =  extents[dimension].map(yscale[p].invert);
-          //return extents[dimension][0] <= d[p] && d[p] <= extents[dimension][1];
-          //console.log(d[p], extent[0], extent[1]);
-          // imortant: extents is in screen coordinates where top-left = (0,0); so extent[0] is upper bound and extent[1] is lower bound
-          //return  (extent[1] <= d[p] && d[p] <= extent[0]);
-          return yscale[p].inverted ? (extent[0] <= d[p] && d[p] <= extent[1]) : (extent[1] <= d[p] && d[p] <= extent[0]);
+
+          if (yscale[p].type === 'categorical') {
+            var extent =  extents[dimension];            
+            var categories = yscale[p].categories;
+            var categorySelection=[];
+            categorySelection = categories.filter(category => {
+              var pos = yscale[p](category);
+              // funny: inverted makes no difference? only on border area of brushSelection (extent)
+              // The comparison extent[0] <= pos && pos <= extent[1] works in both normal and inverted cases.
+              // So while numeric scales need explicit inversion handling because they map continuous ranges, 
+              // categorical scales handle it implicitly through the discrete mapping of categories to positions, 
+              // combined with D3's automatic brush extent coordinate handling. 
+              return yscale[p].inverted ? (extent[0] <= pos && pos <= extent[1]) : (extent[0] <= pos && pos <= extent[1]);
+            });
+            return categorySelection.includes(d[p]) ? true : false;
+          } else {
+            var extent =  extents[dimension].map(yscale[p].invert);
+            return yscale[p].inverted ? (extent[0] <= d[p] && d[p] <= extent[1]) : (extent[1] <= d[p] && d[p] <= extent[0]);
         
+          }
         }) ? selected.push(d) : null;
       });
-  
+    
     // free text search
-    //var query = d3.select("#search")[0][0].value;
     var query = d3.select("#search").node().value;
     if (query.length > 0) {
       selected = search(selected, query);
@@ -509,6 +425,11 @@ function brushed() {
 
 }
 
+/*
+This function creates an interactive legend where each activity group can be toggled on or off by clicking on its entry. 
+The legend entries are styled with color bars and labels corresponding to the activity groups. The size of the color bars is 
+proportional to currently selected number of data points in the corresponding activity group.
+*/
 function create_legend(colors,brush) {
   // create legend
   var legend_data = d3.select("#legend")
@@ -521,7 +442,7 @@ function create_legend(colors,brush) {
     .enter().append("div")
       .attr("title", "Hide group")
       .on("click", function(event,d) { 
-        // toggle food group
+        // toggle activity group
         if (_.contains(excluded_groups, d)) {
           d3.select(this).attr("title", "Hide group")
           excluded_groups = _.difference(excluded_groups,[d]);
@@ -551,6 +472,8 @@ function create_legend(colors,brush) {
 }
 
 // render a set of polylines on a canvas
+// This function handles the rendering of selected data paths with animation, adjusting the rendering speed 
+// based on the number of data points and the time taken for each rendering batch.
 function paths(selected, ctx, count) {
   var n = selected.length,
       i = 0,
@@ -578,6 +501,7 @@ function paths(selected, ctx, count) {
   d3.timer(animloop);
 }
 
+// draw a single polyline
 function path(d, ctx, color) {
   if (color) ctx.strokeStyle = color;
   ctx.beginPath();
@@ -610,47 +534,54 @@ function position(d) {
   return v == null ? xscale(d) : v;
 }
 
+/*
+invert axis of dimension
+*/
 function invert_axis(d) {
-  var ind = dimensions.indexOf(d)
-  console.log('inside invert axis:  d, inverted on enter:',d, yscale[d].inverted);
-  console.log('yscale[d]-range on enter:', yscale[d].range());
-  // save extent before inverting
-  //var extent = d3.brushSelection(yscale[d].brush.node());
-  var brush_ind = dimbrush_index[d];
-  var extent = d3.brushSelection(d3.select("#brush-" + brush_ind).node());
-  console.log('extent on enter:', extent);
-  //var extent = d3.brushSelection(d3.select(this).select(".brush").node());
- 
+
+  let brush_ind = dimbrush_index[d];
+  let extent = d3.brushSelection(d3.select("#brush-" + brush_ind).node());
 
 
-  // note: in d3-v6, inverted is no longer a standard property of the scale
-  // however, it can be added to the object like any other property
-  if (yscale[d].inverted == true) {
-    yscale[d].range([h, 0]);
-    d3.selectAll('.label')
-      .filter(function(p) { return p == d; })
-      .style("text-decoration", null);
-    // distance between extent and OLD max-range (h)
-    if (extent) {extent=[h-extent[1], h-extent[0]];}
-    //var extDist = [h-extent[1], h-extent[0]];
-    //extent = extDist;
-    yscale[d].inverted = false;
+  if (yscale[d].type === 'categorical') {
+    console.log('%centering invert_axis (inverted, extent): ','color : red', yscale[d].inverted, extent);
+    if (yscale[d].inverted) {
+      yscale[d].categories = yscale[d].categories.reverse();
+      yscale[d].domain(yscale[d].categories);
+      //TODO: check notion of extent for categorical dimensions
+      if (extent) {
+        extent = [h-extent[1], h-extent[0]];
+      }
+      yscale[d].inverted = false;
+    } else {
+      yscale[d].categories = yscale[d].categories.reverse();
+      yscale[d].domain(yscale[d].categories);
+      if (extent) {
+        extent = [h-extent[1], h-extent[0]];
+      }
+      yscale[d].inverted = true;
+    }
+    console.log('%con-exit invert_axis (inverted, extent): ','color : red', yscale[d].inverted, extent);
   } else {
-    yscale[d].range([0, h]);
-    d3.selectAll('.label')
-      .filter(function(p) { return p == d; })
-      .style("text-decoration", "underline");
-     // distance between extent and OLD min-range (0)
-     if (extent) {extent=[h-extent[1], h-extent[0]];}
-    //var extDist = [h-extent[1], h-extent[0]];
-    //extent = extDist;
-    yscale[d].inverted = true;
+    if (yscale[d].inverted) {
+      yscale[d].range([h, 0]);
+      if (extent) {
+        extent = [h-extent[1], h-extent[0]];
+      }
+      yscale[d].inverted = false;
+    } else {
+      yscale[d].range([0, h]);
+      if (extent) {
+        extent = [h-extent[1], h-extent[0]];
+      }
+      yscale[d].inverted = true;
+    }
   }
 
-  console.log('yscale[d]-range on exit:', yscale[d].range());
-  console.log('extent on exit:', extent);
-  //console.log('inverted on exit:', yscale[d].inverted);
-  if (extent) console.log('extent on exit yscaled in domain: ',[yscale[d].invert(extent[0]), yscale[d].invert(extent[1])]);
+  d3.selectAll('.label')
+  .filter(function(p) { return p == d; })
+  .style("text-decoration", yscale[d].inverted ? "underline" : null);
+
   return extent;
 }
 
@@ -675,12 +606,9 @@ function remove_axis(d, g) {
 // transition ticks for reordering, rescaling and inverting
 function update_ticks(d, extent) {
   // update brushes
- 
-  // update brushes
   if (d) {
       var brush_el = d3.selectAll(".brush")
           .filter(function(key) { 
-            //console.log('inside update_ticks: key und d  ',key,d);
             return key == d; });
 
       // single tick
@@ -777,7 +705,6 @@ function render_stats(i,n,render_speed) {
   d3.select("#render-speed").text(render_speed);
 }
 
-
 // simple data table
 function data_table(sample) {
   // sort by first column
@@ -835,7 +762,6 @@ function unhighlight() {
 function actives() {
 
   var actives = dimensions.filter(function(p,i) {
-    //var brushSelection = d3.brushSelection(d3.select(".brush").node());
     var brush_ind = dimbrush_index[p];
     var brushSelection = d3.brushSelection(d3.select("#brush-" + brush_ind).node());
     return brushSelection !== null;
@@ -844,38 +770,46 @@ function actives() {
   // Get extents for active dimensions 
   var extents = [];
   actives.map(function(p,i) { 
-    // get index of actives element in dimension array; we need this for the brush id
-    //var ind = dimensions.indexOf[p];
+
     var brush_ind = dimbrush_index[p];
     var brushSelection = d3.brushSelection(d3.select("#brush-" + brush_ind).node()); 
     if (brushSelection) {extents.push(brushSelection) }
   });
 
-    // Get lines within extents
+
+  // Get lines within extents
 
   var selected = [];
   data
     .filter(function(d) {
-      //return d.group == "Spices and Herbs";
       return !_.contains(excluded_groups, d.group);
     })
     .map(function(d) {
       return actives.every(function(p, dimension) {
-        //console.log("d, p, dimension: ",  d, p, dimension);
-        //console.log("d-p-dimension, extents: ",d[p], extents);
-        //if (extents) console.log(d[p], extents[dimension][0], extents[dimension][1]);
-        var extent =  extents[dimension].map(yscale[p].invert);
-        //return extents[dimension][0] <= d[p] && d[p] <= extents[dimension][1];
-        //console.log(d[p], extent[0], extent[1]);
-        // imortant: extents is in screen coordinates where top-left = (0,0); so extent[0] is upper bound and extent[1] is lower bound
-        //return  (extent[1] <= d[p] && d[p] <= extent[0]);
-        return yscale[p].inverted ? (extent[0] <= d[p] && d[p] <= extent[1]) : (extent[1] <= d[p] && d[p] <= extent[0]);
+
+        if (yscale[p].type === 'categorical') {
+          var extent =  extents[dimension];            
+          var categories = yscale[p].categories;
+          var categorySelection=[];
+          categorySelection = categories.filter(category => {
+            var pos = yscale[p](category);
+            // funny: inverted makes no difference? only on border area of brushSelection (extent)
+            // The comparison extent[0] <= pos && pos <= extent[1] works in both normal and inverted cases.
+            // So while numeric scales need explicit inversion handling because they map continuous ranges, 
+            // categorical scales handle it implicitly through the discrete mapping of categories to positions, 
+            // combined with D3's automatic brush extent coordinate handling. 
+            return yscale[p].inverted ? (extent[0] <= pos && pos <= extent[1]) : (extent[0] <= pos && pos <= extent[1]);
+          });
+          return categorySelection.includes(d[p]) ? true : false;
+        } else {
+          var extent =  extents[dimension].map(yscale[p].invert);
+          return yscale[p].inverted ? (extent[0] <= d[p] && d[p] <= extent[1]) : (extent[1] <= d[p] && d[p] <= extent[0]);
       
+        }
       }) ? selected.push(d) : null;
-    });  
+    });
 
     // free text search
-    //var query = d3.select("#search")[0][0].value;
     var query = d3.select("#search").node().value;
     if (query.length > 0) {
       selected = search(selected, query);
@@ -888,7 +822,7 @@ function actives() {
 function keep_data() {
   new_data = actives();
   if (new_data.length == 0) {
-    alert("I don't mean to be rude, but I can't let you remove all the data.\n\nTry removing some brushes to get your data back. Then click 'Keep' when you've selected data you want to look closer at.");
+    alert("Don't remove all the data.\n\nTry removing some brushes to get your data back. Then click 'Keep' when you've selected data you want to look closer at.");
     return false;
   }
   data = new_data;
@@ -899,26 +833,13 @@ function keep_data() {
 function exclude_data() {
   new_data = _.difference(data, actives());
   if (new_data.length == 0) {
-    alert("I don't mean to be rude, but I can't let you remove all the data.\n\nTry selecting just a few data points then clicking 'Exclude'.");
+    alert("Don't remove all the data.\n\nTry selecting just a few data points then clicking 'Exclude'.");
     return false;
   }
   data = new_data;
   rescale();
 }
 
-
-// Export data
-/*
-function export_csv() {
-  var keys = Object.keys(data[0]);
-  var rows = actives().map(function(row) {
-    return keys.map(function(k) { return row[k]; })
-  });
-  var csv = d3.csv.format([keys].concat(rows)).replace(/\n/g,"<br/>\n");
-  var styles = "<style>body { font-family: sans-serif; font-size: 12px; }</style>";
-  window.open("text/csv").document.write(styles + csv);
-}
-*/
 
 function export_csv() {
   var keys = Object.keys(data[0]);
@@ -932,65 +853,67 @@ function export_csv() {
 }
 
 
-/*
-// scale to window size
-window.onresize = function() {
-  width = document.body.clientWidth,
-  height = d3.max([document.body.clientHeight-500, 220]);
-
-  w = width - m[1] - m[3],
-  h = height - m[0] - m[2];
-
-  d3.select("#chart")
-      .style("height", (h + m[0] + m[2]) + "px")
-
-  d3.selectAll("canvas")
-      .attr("width", w)
-      .attr("height", h)
-      .style("padding", m.join("px ") + "px");
-
-  d3.select("svg")
-      .attr("width", w + m[1] + m[3])
-      .attr("height", h + m[0] + m[2])
-    .select("g")
-      .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
-  
-  xscale = d3.scale.ordinal().rangePoints([0, w], 1).domain(dimensions);
-  dimensions.forEach(function(d) {
-    yscale[d].range([h, 0]);
-  });
-
-  d3.selectAll(".dimension")
-    .attr("transform", function(d) { return "translate(" + xscale(d) + ")"; })
-  // update brush placement
-  d3.selectAll(".brush")
-    .each(function(d) { d3.select(this).call(yscale[d].brush = d3.svg.brush().y(yscale[d]).on("brush", brush)); })
-  brush_count++;
-
-  // update axis placement
-  axis = axis.ticks(1+height/50),
-  d3.selectAll(".axis")
-    .each(function(d) { d3.select(this).call(axis.scale(yscale[d])); });
-
-  // render data
-  brush();
-};
-*/
-
 // Rescale to new dataset domain
 function rescale() {
   // reset yscales, preserving inverted state
   dimensions.forEach(function(d,i) {
-    if (yscale[d].inverted) {
-      yscale[d] = d3.scaleLinear()
-          .domain(d3.extent(data, function(p) { return +p[d]; }))
-          .range([0, h]);
-      yscale[d].inverted = true;
+    if (yscale[d].type === 'numeric') {
+      if (yscale[d].inverted) {
+        yscale[d] = d3.scaleLinear()
+            .domain(d3.extent(data, function(p) { return +p[d]; }))
+            .range([0, h]);
+        yscale[d].inverted = true;
+      } else {
+        yscale[d] = d3.scaleLinear()
+            .domain(d3.extent(data, function(p) { return +p[d]; }))
+            .range([h, 0]);
+      }
     } else {
-      yscale[d] = d3.scaleLinear()
-          .domain(d3.extent(data, function(p) { return +p[d]; }))
-          .range([h, 0]);
-    }
+      // zoom in/out for categorical scales
+      if (yscale[d].type === 'categorical' && catDomains.includes(d)) {
+        let categories = [...new Set(data.map(p=> p[d]))];
+
+        if (d=== 'MonthName') {
+          // Sort categories based on the natural month order
+          categories = categories.sort((a, b) => {
+            return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+          });
+
+        };
+
+        if (d=== 'xDay') {
+          // Sort categories based on the natural month order
+          categories = categories.sort((a, b) => {
+            return dayOrder.indexOf(a) - dayOrder.indexOf(b);
+          });
+
+        };
+
+        yscale[d] = d3.scaleBand()
+          .domain(categories)
+          .range([h, 0])
+          .padding(0.5);
+        yscale[d].type = 'categorical';
+        yscale[d].categories = categories;
+
+      }
+      // nothing to do here for other categorical scales
+    };
+    // now reset all brushes:
+    //let brush_ind = dimbrush_index[d];
+    //let brushSelection = d3.brushSelection(d3.select("#brush-" + brush_ind).node());
+
+    //dimensions.forEach(function(d, i) {
+    if (!yscale[d] || !yscale[d].brush) {
+      console.log(`Brush for dimension "${d}" is undefined!`);
+    } else {
+      // Get the brush selection and clear it
+      d3.select("#brush-" + i)
+        .call(yscale[d].brush.move, null); // Clear the brush selection
+      console.log(`Brush for dimension "${d}" reset`);
+    };
+    //});
+
   });
 
   update_ticks();
@@ -1047,111 +970,10 @@ function search(selection,str) {
 }
 
 function reset_brushExtend(brushElem, brush) {
-  console.log("brush to be cleared: ", brushElem, d)
-  // muss noch dimension d übergeben werden
-  //d3.select("#" + brushElem.id).call(yscale[id].brush.clear);
+
   d3.select("#" + brushElem.id).call(brush.move, null);
-  //d3.select("#brush-" + i).call(yscale[d].brush.move, null);
+
 }
-
-// transition ticks for reordering, rescaling and inverting
-function update_ticks_old(d, extent) {
-  // update brushes
- 
-  // update brushes
-  if (d) {
-      var brush_el = d3.selectAll(".brush")
-          .filter(function(key) { 
-            //console.log('inside update_ticks: key und d  ',key,d);
-            return key == d; });
-
-      // single tick
-      if (extent) {
-          // restore previous extent
-          yscale[d].brush = d3.brushY().extent([[0, 0], [36, h]])
-
-          .on("start", function(event){
-            if (event && event.sourceEvent) event.sourceEvent.stopPropagation();
-            console.log("brush-start");
-          })
-          .on("brush", function(event){
-            if (event && event.sourceEvent) event.sourceEvent.stopPropagation();
-            brushed();
-          })
-          .on("end", function(event){
-            //event.sourceEvent.stopPropagation();
-            console.log("brush-end");
-          });
-
-          brush_el.call(yscale[d].brush);
-          brush_el.call(yscale[d].brush.move, extent);
-      } else {
-          yscale[d].brush = d3.brushY().extent([[0, 0], [36, h]])
-          .on("start", function(event){
-            if (event && event.sourceEvent) event.sourceEvent.stopPropagation();
-            console.log("brush-start");
-          })
-          .on("brush", function(event){
-            if (event && event.sourceEvent) event.sourceEvent.stopPropagation();
-            brushed();
-          })
-          .on("end", function(event){
-            //event.sourceEvent.stopPropagation();
-            console.log("brush-end");
-          });
-
-          brush_el.call(yscale[d].brush);
-      }
-  } else {
-      // all ticks
-      d3.selectAll(".brush")
-          .each(function(d) {
-              yscale[d].brush = d3.brushY().extent([[0, 0], [36, h]])
-              .on("start", function(event){
-                if (event && event.sourceEvent) event.sourceEvent.stopPropagation();
-                console.log("brush-start");
-              })
-              .on("brush", function(event){
-                if (event && event.sourceEvent) event.sourceEvent.stopPropagation();
-                brushed();
-              })
-              .on("end", function(event){
-                //event.sourceEvent.stopPropagation();
-                console.log("brush-end");
-              })
-
-              d3.select(this).call(yscale[d].brush);
-          });
-  }
-
-  brush_count++;
-
-  show_ticks();
-
-  // update axes
-  d3.selectAll(".axis")
-    .each(function(d,i) {
-      // hide lines for better performance
-      d3.select(this).selectAll('line').style("display", "none");
-
-      // transition axis numbers
-      d3.select(this)
-        .transition()
-        .duration(720)
-        .call(d3.axisLeft(yscale[d]));
-
-      // bring lines back
-      d3.select(this).selectAll('line').transition().delay(800).style("display", null);
-
-      d3.select(this)
-        .selectAll('text')
-        .style('font-weight', null)
-        .style('font-size', null)
-        .style('display', null);
-    });
-}
-
-
 
 
 // Define brush handler functions outside the .each function block
